@@ -8,17 +8,22 @@ class AudioCpp < Formula
 
   depends_on "cmake" => :build
   depends_on "ninja" => :build
+  depends_on "libomp"
 
   def install
+    args = std_cmake_args + %W[
+      -DAUDIOCPP_DEPLOYMENT_BUILD=ON
+      -DENGINE_ENABLE_OPENMP=ON
+      -DENGINE_ENABLE_NATIVE_CPU=OFF
+      -DENGINE_ENABLE_METAL=#{OS.mac? ? "ON" : "OFF"}
+      -DENGINE_BUILD_EXAMPLES=OFF
+      -DENGINE_BUILD_TESTS=OFF
+      -DENGINE_BUILD_WARMBENCH=OFF
+    ]
+    args << "-DOpenMP_ROOT=#{Formula["libomp"].opt_prefix}" if OS.mac?
+
     system "cmake", "-S", ".", "-B", "build", "-G", "Ninja",
-                    *std_cmake_args,
-                    "-DAUDIOCPP_DEPLOYMENT_BUILD=ON",
-                    "-DENGINE_ENABLE_OPENMP=OFF",
-                    "-DENGINE_ENABLE_NATIVE_CPU=OFF",
-                    "-DENGINE_ENABLE_METAL=#{OS.mac? ? "ON" : "OFF"}",
-                    "-DENGINE_BUILD_EXAMPLES=OFF",
-                    "-DENGINE_BUILD_TESTS=OFF",
-                    "-DENGINE_BUILD_WARMBENCH=OFF"
+                    *args
     system "cmake", "--build", "build",
                     "--target", "audiocpp_cli", "audiocpp_server", "audiocpp_gguf"
 

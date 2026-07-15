@@ -7,10 +7,11 @@ class AudioCpp < Formula
   license "Apache-2.0"
 
   depends_on "cmake" => :build
+  depends_on "libomp" => :build
   depends_on "ninja" => :build
-  depends_on "libomp"
 
   def install
+    private_lib = libexec/"lib"
     args = std_cmake_args + %W[
       -DAUDIOCPP_DEPLOYMENT_BUILD=ON
       -DENGINE_ENABLE_OPENMP=ON
@@ -31,6 +32,22 @@ class AudioCpp < Formula
     bin.install_symlink bin/"audiocpp_cli" => "audiocpp"
     bin.install "build/bin/audiocpp_server"
     bin.install "build/bin/audiocpp_gguf"
+
+    if OS.mac?
+      libomp = Formula["libomp"].opt_lib/shared_library("libomp")
+      private_lib.install libomp.realpath => libomp.basename
+      private_libomp = private_lib/libomp.basename
+      system "install_name_tool", "-id", "@executable_path/../libexec/lib/#{private_libomp.basename}",
+             private_libomp
+
+      [bin/"audiocpp_cli", bin/"audiocpp_server", bin/"audiocpp_gguf"].each do |exe|
+        shell_output("otool -L #{exe}").lines.grep(/libomp/).each do |line|
+          old_name = line.strip.split.first
+          system "install_name_tool", "-change", old_name,
+                 "@executable_path/../libexec/lib/#{private_libomp.basename}", exe
+        end
+      end
+    end
   end
 
   test do

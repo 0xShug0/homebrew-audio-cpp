@@ -21,7 +21,7 @@ class AudioCpp < Formula
       -DENGINE_BUILD_TESTS=OFF
       -DENGINE_BUILD_WARMBENCH=OFF
     ]
-    args << "-DOpenMP_ROOT=#{Formula["libomp"].opt_prefix}" if OS.mac?
+    args << "-DOpenMP_ROOT=#{formula_opt_prefix("libomp")}" if OS.mac?
 
     system "cmake", "-S", ".", "-B", "build", "-G", "Ninja",
                     *args
@@ -34,18 +34,22 @@ class AudioCpp < Formula
     bin.install "build/bin/audiocpp_gguf"
 
     if OS.mac?
-      libomp = Formula["libomp"].opt_lib/shared_library("libomp")
-      private_lib.install libomp.realpath => libomp.basename
+      libomp = formula_opt_lib("libomp")/"libomp.dylib"
+      private_lib.mkpath
+      cp libomp.realpath, private_lib/libomp.basename
       private_libomp = private_lib/libomp.basename
-      system "install_name_tool", "-id", "@executable_path/../libexec/lib/#{private_libomp.basename}",
-             private_libomp
+      chmod 0644, private_libomp
+      private_name = "@executable_path/../libexec/lib/#{private_libomp.basename}"
+      MachO::Tools.change_dylib_id(private_libomp, private_name)
+      MachO.codesign! private_libomp
 
       [bin/"audiocpp_cli", bin/"audiocpp_server", bin/"audiocpp_gguf"].each do |exe|
-        shell_output("otool -L #{exe}").lines.grep(/libomp/).each do |line|
+        chmod 0755, exe
+        Utils.safe_popen_read("otool", "-L", exe).lines.grep(/libomp/).each do |line|
           old_name = line.strip.split.first
-          system "install_name_tool", "-change", old_name,
-                 "@executable_path/../libexec/lib/#{private_libomp.basename}", exe
+          MachO::Tools.change_install_name(exe, old_name, private_name)
         end
+        MachO.codesign! exe
       end
     end
   end

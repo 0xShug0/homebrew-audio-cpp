@@ -12,6 +12,7 @@ brew install --build-from-source --formula Formula/audio-cpp.rb
 
 ```sh
 brew tap 0xShug0/audio-cpp
+brew trust 0xShug0/audio-cpp
 brew install audio-cpp
 ```
 

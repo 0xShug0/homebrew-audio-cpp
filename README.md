@@ -1,6 +1,6 @@
 # Homebrew tap for audio.cpp
 
-Formula for `audio.cpp` tag `release-0.4`.
+Formula for `audio.cpp` tag `release-0.5`.
 
 ## Local install
 

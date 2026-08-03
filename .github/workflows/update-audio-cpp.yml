@@ -1,0 +1,135 @@
+name: Update audio.cpp formula
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out tap
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find latest upstream release tag
+        id: latest
+        shell: bash
+        run: |
+          set -euo pipefail
+          tags="$(
+            git ls-remote --tags --refs https://github.com/0xShug0/audio.cpp.git 'refs/tags/release-*' \
+              | awk '{ sub("refs/tags/", "", $2); print $2 }'
+          )"
+          latest_tag="$(
+            printf '%s\n' "${tags}" | python3 -c '
+          import re
+          import sys
+
+          def key(tag):
+              value = tag.removeprefix("release-")
+              parts = re.findall(r"\d+|[A-Za-z]+", value)
+              return [(0, int(part)) if part.isdigit() else (1, part.lower()) for part in parts]
+
+          tags = [line.strip() for line in sys.stdin if line.strip()]
+          print(max(tags, key=key) if tags else "")
+          '
+          )"
+          if [[ -z "${latest_tag}" ]]; then
+            echo "No release-* tags found upstream" >&2
+            exit 1
+          fi
+          echo "tag=${latest_tag}" >> "${GITHUB_OUTPUT}"
+          echo "Latest upstream tag: ${latest_tag}"
+
+      - name: Update formula and README
+        id: update
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.latest.outputs.tag }}"
+          current_tag="$(
+            python3 - <<'PY'
+          import re
+          from pathlib import Path
+          text = Path("Formula/audio-cpp.rb").read_text()
+          match = re.search(r"archive/refs/tags/(release-[^/]+)\.tar\.gz", text)
+          if not match:
+              raise SystemExit("Could not find current release tag in formula")
+          print(match.group(1))
+          PY
+          )"
+
+          if [[ "${current_tag}" == "${tag}" ]]; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            echo "Formula is already pinned to ${tag}"
+            exit 0
+          fi
+
+          url="https://github.com/0xShug0/audio.cpp/archive/refs/tags/${tag}.tar.gz"
+          sha256="$(curl -L --fail --silent "${url}" | shasum -a 256 | awk '{print $1}')"
+          python3 - "${tag}" "${sha256}" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          tag, sha256 = sys.argv[1], sys.argv[2]
+          formula = Path("Formula/audio-cpp.rb")
+          readme = Path("README.md")
+
+          formula_text = formula.read_text()
+          formula_text = re.sub(
+              r'url "https://github\.com/0xShug0/audio\.cpp/archive/refs/tags/release-[^/]+\.tar\.gz"',
+              f'url "https://github.com/0xShug0/audio.cpp/archive/refs/tags/{tag}.tar.gz"',
+              formula_text,
+              count=1,
+          )
+          formula_text = re.sub(
+              r'sha256 "[0-9a-f]{64}"',
+              f'sha256 "{sha256}"',
+              formula_text,
+              count=1,
+          )
+          formula.write_text(formula_text)
+
+          readme_text = readme.read_text()
+          readme_text = re.sub(
+              r"Formula for `audio\.cpp` tag `release-[^`]+`.",
+              f"Formula for `audio.cpp` tag `{tag}`.",
+              readme_text,
+              count=1,
+          )
+          readme.write_text(readme_text)
+          PY
+
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+          echo "Updated from ${current_tag} to ${tag}"
+          echo "sha256=${sha256}"
+
+      - name: Validate formula
+        if: steps.update.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -c Formula/audio-cpp.rb
+          brew untap 0xShug0/audio-cpp || true
+          brew tap 0xShug0/audio-cpp "${GITHUB_WORKSPACE}"
+          brew audit --strict --new 0xShug0/audio-cpp/audio-cpp
+
+      - name: Commit and push update
+        if: steps.update.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.latest.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/audio-cpp.rb README.md
+          git commit -m "Update audio-cpp to ${tag#release-}"
+          git push

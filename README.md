@@ -1,6 +1,6 @@
 # Homebrew tap for audio.cpp
 
-Formula for `audio.cpp` tag `release-0.6.1`.
+Formula for `audio.cpp` tag `release-0.6.1-brew-test`, with the native model manager enabled.
 
 ## Local install
 
@@ -22,3 +22,4 @@ brew install audio-cpp
 - `audiocpp` symlink to `audiocpp_cli`
 - `audiocpp_server`
 - `audiocpp_gguf`
+- `audiocpp_model_manager`

@@ -24,7 +24,8 @@ jobs:
         run: |
           set -euo pipefail
           tags="$(
-            git ls-remote --tags --refs https://github.com/0xShug0/audio.cpp.git 'refs/tags/release-*' \
+            git ls-remote --tags --refs https://github.com/0xShug0/audio.cpp.git \
+                'refs/tags/release-*' 'refs/tags/v*' \
               | awk '{ sub("refs/tags/", "", $2); print $2 }'
           )"
           latest_tag="$(
@@ -33,16 +34,20 @@ jobs:
           import sys
 
           def key(tag):
-              value = tag.removeprefix("release-")
+              value = re.sub(r"^(?:release-|v)", "", tag)
               parts = re.findall(r"\d+|[A-Za-z]+", value)
               return [(0, int(part)) if part.isdigit() else (1, part.lower()) for part in parts]
 
-          tags = [line.strip() for line in sys.stdin if line.strip()]
+          tags = [
+              line.strip()
+              for line in sys.stdin
+              if re.match(r"^(?:release-|v)\d", line.strip())
+          ]
           print(max(tags, key=key) if tags else "")
           '
           )"
           if [[ -z "${latest_tag}" ]]; then
-            echo "No release-* tags found upstream" >&2
+            echo "No release-* or v* tags found upstream" >&2
             exit 1
           fi
           echo "tag=${latest_tag}" >> "${GITHUB_OUTPUT}"
@@ -59,9 +64,9 @@ jobs:
           import re
           from pathlib import Path
           text = Path("Formula/audio-cpp.rb").read_text()
-          match = re.search(r"archive/refs/tags/(release-[^/]+)\.tar\.gz", text)
+          match = re.search(r"archive/refs/tags/((?:release-|v)[^/]+)\.tar\.gz", text)
           if not match:
-              raise SystemExit("Could not find current release tag in formula")
+              raise SystemExit("Could not find current upstream tag in formula")
           print(match.group(1))
           PY
           )"
@@ -85,7 +90,7 @@ jobs:
 
           formula_text = formula.read_text()
           formula_text = re.sub(
-              r'url "https://github\.com/0xShug0/audio\.cpp/archive/refs/tags/release-[^/]+\.tar\.gz"',
+              r'url "https://github\.com/0xShug0/audio\.cpp/archive/refs/tags/(?:release-|v)[^/]+\.tar\.gz"',
               f'url "https://github.com/0xShug0/audio.cpp/archive/refs/tags/{tag}.tar.gz"',
               formula_text,
               count=1,
@@ -100,8 +105,8 @@ jobs:
 
           readme_text = readme.read_text()
           readme_text = re.sub(
-              r"Formula for `audio\.cpp` tag `release-[^`]+`.",
-              f"Formula for `audio.cpp` tag `{tag}`.",
+              r"Formula for `audio\.cpp` tag `(?:release-|v)[^`]+`(?:, with the native model manager enabled)?\.",
+              f"Formula for `audio.cpp` tag `{tag}`, with the native model manager enabled.",
               readme_text,
               count=1,
           )
@@ -128,8 +133,10 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ steps.latest.outputs.tag }}"
+          version="${tag#release-}"
+          version="${version#v}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Formula/audio-cpp.rb README.md
-          git commit -m "Update audio-cpp to ${tag#release-}"
+          git commit -m "Update audio-cpp to ${version}"
           git push

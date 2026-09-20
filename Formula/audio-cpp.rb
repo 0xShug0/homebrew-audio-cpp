@@ -1,8 +1,8 @@
 class AudioCpp < Formula
   desc "C++ audio inference engine powered by ggml"
   homepage "https://github.com/0xShug0/audio.cpp"
-  url "https://github.com/0xShug0/audio.cpp/archive/refs/tags/release-0.6.1-brew-test.tar.gz"
-  sha256 "da58a9910987cfb66a9af48aaa5234f06d2b16997b4efa81785a1547e377002a"
+  url "https://github.com/0xShug0/audio.cpp/archive/refs/tags/v0.8.1.tar.gz"
+  sha256 "4c96f43a1b0e909eef25e55403247aca9a14e542d5b960599666adff78de4a7f"
   license "Apache-2.0"
 
   depends_on "cmake" => :build

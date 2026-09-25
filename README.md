@@ -1,6 +1,6 @@
 # Homebrew tap for audio.cpp
 
-Formula for `audio.cpp` tag `v0.8.2`, with the native model manager enabled.
+Formula for `audio.cpp` tag `v0.8.2-audio8-perf-hotfix`, with the native model manager enabled.
 
 ## Local install
 

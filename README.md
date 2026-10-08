@@ -1,6 +1,6 @@
 # Homebrew tap for audio.cpp
 
-Formula for `audio.cpp` tag `v0.9.0`, with the native model manager enabled.
+Formula for `audio.cpp` tag `v0.9.1`, with the native model manager enabled.
 
 ## Local install
 

@@ -125,6 +125,7 @@ jobs:
           ruby -c Formula/audio-cpp.rb
           brew untap 0xShug0/audio-cpp || true
           brew tap 0xShug0/audio-cpp "${GITHUB_WORKSPACE}"
+          brew trust --formula 0xshug0/audio-cpp/audio-cpp
           brew audit --strict --new 0xShug0/audio-cpp/audio-cpp
 
       - name: Commit and push update

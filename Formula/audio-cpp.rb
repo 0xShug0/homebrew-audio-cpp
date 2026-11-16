@@ -29,8 +29,8 @@ class AudioCpp < Formula
                 endif()
               CMAKE
     inreplace "app/server/runtime.cpp",
-              'default_models_root_ = (binary_directory / "models").lexically_normal();',
-              "default_models_root_ = std::filesystem::path(\"#{var}/audio-cpp/models\").lexically_normal();"
+              'config_.models_root.value_or(binary_directory / "models")',
+              "config_.models_root.value_or(std::filesystem::path(\"#{var}/audio-cpp/models\"))"
     args = std_cmake_args + %W[
       -DAUDIOCPP_DEPLOYMENT_BUILD=ON
       -DAUDIOCPP_BUILD_NATIVE_MODEL_MANAGER=ON
